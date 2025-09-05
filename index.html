@@ -8,97 +8,57 @@
         body, html {
             height: 100%;
             margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
+            overflow: hidden; /* Убираем глобальные полосы прокрутки */
+            position: relative;
         }
-        
-        .controls {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-        }
-        
-        .controls button {
-            display: block;
-            margin: 5px 0;
-            padding: 8px 12px;
-            width: 100%;
-            background: #4a6fa5;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-        
-        .controls button:hover {
-            background: #3a5a8a;
-        }
-        
         .image-container {
             width: 100vw;
             height: 100vh;
-            overflow: scroll;
-            background: #f0f0f0;
+            overflow: scroll; /* Контейнер сам будет прокручиваться */
         }
-        
         #target-image {
+            /* Размер оригинального изображения */
             width: 2000px;
             height: 1500px;
             display: block;
-            transition: transform 0.5s ease;
+            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
         }
         
-        .reset-btn {
+        /* Кнопка сброса зума */
+        .reset-zoom {
             position: fixed;
-            bottom: 20px;
+            top: 20px;
             right: 20px;
-            z-index: 100;
-            padding: 12px 20px;
-            background: #ff6b6b;
-            color: white;
-            border: none;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ccc;
             border-radius: 4px;
+            padding: 10px 15px;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
             cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            transition: background 0.3s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.3s;
         }
         
-        .reset-btn:hover {
-            background: #ff5252;
+        .reset-zoom:hover {
+            background: rgba(255, 255, 255, 1);
         }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <h3>Области для zoom:</h3>
-        <button onclick="zoomToArea('vn14')">Область VN14</button>
-        <button onclick="zoomToArea('area2')">Область 2</button>
-    </div>
-    
     <div class="image-container">
-        <img id="target-image" src="your-image" alt="Тестовое изображение">
+        <img id="target-image" src="your-image.jpg" alt="Описание">
     </div>
     
-    <button class="reset-btn" onclick="resetZoom()">Сбросить Zoom</button>
+    <button class="reset-zoom" onclick="resetZoom()">Сбросить zoom</button>
 
     <script>
-        // Объект с координатами областей для zoom'а
+        // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
         const areas = {
-            'vn14': { x: 150, y: 500, zoom: 5 },
+            'vn14': { x: 150, y: 500, zoom: 5 }, // x, y - координаты, zoom - уровень увеличения
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
-        
-        // Флаг для отслеживания состояния zoom
-        let isZoomed = false;
-        // Сохраняем оригинальные размеры изображения
-        let originalWidth = 2000;
-        let originalHeight = 1500;
 
         function zoomToArea(areaKey) {
             const area = areas[areaKey];
@@ -106,85 +66,78 @@
 
             const img = document.getElementById('target-image');
             const container = document.querySelector('.image-container');
-            
-            // Сбрасываем трансформацию
+
+            // 1. Сбрасываем трансформацию и прокрутку к началу
             img.style.transform = 'none';
-            
-            // Даём браузеру мгновение на отрисовку
+            container.scrollLeft = 0;
+            container.scrollTop = 0;
+
+            // 2. Даём браузеру мгновение на отрисовку
             setTimeout(() => {
-                // Применяем увеличение
+                // 3. Применяем увеличение
                 img.style.transform = `scale(${area.zoom})`;
-                img.style.transformOrigin = '0 0';
-                
-                // Расчет прокрутки
+                img.style.transformOrigin = '0 0'; // Точка трансформации - всегда левый верхний угол
+
+                // 4. РАСЧЕТ ПРОКРУТКИ:
+                // Нам нужно поместить целевую точку (area.x, area.y) в центр экрана.
+                // После scale координаты изображения умножаются на zoom.
+                // Считаем позицию целевой точки на увеличенном изображении:
                 const scaledX = area.x * area.zoom;
                 const scaledY = area.y * area.zoom;
-                
+
+                // Центр окна браузера:
                 const centerX = container.clientWidth / 2;
                 const centerY = container.clientHeight / 2;
-                
+
+                // На сколько нужно прокрутить контейнер, чтобы целевая точка стала в центре?
+                // Искомая позиция прокрутки = позиция точки - половина ширины/высоты видимой области.
                 const targetScrollLeft = scaledX - centerX;
                 const targetScrollTop = scaledY - centerY;
-                
-                // Прокручиваем к рассчитанной позиции
+
+                // 5. Прокручиваем к рассчитанной позиции
                 container.scrollTo({
                     left: targetScrollLeft,
                     top: targetScrollTop,
-                    behavior: 'smooth'
+                    behavior: 'smooth' // Плавная прокрутка
                 });
-                
-                isZoomed = true;
-            }, 50);
+            }, 50); // Небольшая задержка в 50мс для стабильности
         }
 
+        // Функция сброса зума
         function resetZoom() {
             const img = document.getElementById('target-image');
             const container = document.querySelector('.image-container');
             
-            // Плавно сбрасываем трансформацию
+            // Убираем трансформацию
             img.style.transform = 'none';
-            img.style.transformOrigin = 'center';
+            img.style.transformOrigin = '0 0';
             
-            // Плавно прокручиваем к центру изображения
-            const centerX = (originalWidth - container.clientWidth) / 2;
-            const centerY = (originalHeight - container.clientHeight) / 2;
-            
-            container.scrollTo({
-                left: centerX,
-                top: centerY,
-                behavior: 'smooth'
-            });
-            
-            isZoomed = false;
+            // Прокручиваем к центру изображения
+            setTimeout(() => {
+                const centerX = (img.offsetWidth - container.clientWidth) / 2;
+                const centerY = (img.offsetHeight - container.clientHeight) / 2;
+                
+                container.scrollTo({
+                    left: centerX,
+                    top: centerY,
+                    behavior: 'smooth'
+                });
+                
+                // Очищаем хэш в URL
+                window.location.hash = '';
+            }, 50);
         }
 
         // Обработка загрузки страницы и хэша
         function handleHash() {
-            const hash = window.location.hash.substring(1);
+            const hash = window.location.hash.substring(1); // Убираем # из #area1
             if (areas[hash]) {
                 zoomToArea(hash);
-            } else {
-                // Если хэш не соответствует области, сбрасываем zoom
-                resetZoom();
             }
         }
 
-        // Инициализация при загрузке
-        window.addEventListener('load', function() {
-            // Сначала центрируем изображение
-            resetZoom();
-            // Затем проверяем хэш
-            setTimeout(handleHash, 100);
-        });
-        
+        window.addEventListener('load', handleHash);
         window.addEventListener('hashchange', handleHash);
-        
-        // Добавляем обработчик изменения размера окна
-        window.addEventListener('resize', function() {
-            if (!isZoomed) {
-                resetZoom();
-            }
-        });
     </script>
 </body>
 </html>
