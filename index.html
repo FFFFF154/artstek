@@ -115,6 +115,8 @@
         };
 
         let isZoomed = false;
+        let currentZoom = 1;
+        let currentScrollPosition = { left: 0, top: 0 };
         const resetButton = document.getElementById('resetZoom');
         const img = document.getElementById('target-image');
         const container = document.getElementById('imageContainer');
@@ -137,12 +139,13 @@
             if (!area) return;
 
             // Сохраняем текущую позицию прокрутки перед изменением
-            const currentScroll = {
+            currentScrollPosition = {
                 left: container.scrollLeft,
                 top: container.scrollTop
             };
 
             // Применяем увеличение
+            currentZoom = area.zoom;
             img.style.transform = `scale(${area.zoom})`;
             img.style.transformOrigin = '0 0';
 
@@ -172,16 +175,29 @@
             
             hideResetButton();
             
+            // Сохраняем текущую позицию прокрутки перед сбросом
+            const currentScroll = {
+                left: container.scrollLeft,
+                top: container.scrollTop
+            };
+            
+            // Вычисляем позицию для плавного возврата к нормальному масштабу
+            const normalizedScrollLeft = currentScroll.left / currentZoom;
+            const normalizedScrollTop = currentScroll.top / currentZoom;
+            
             // Плавный сброс трансформации
             img.style.transform = 'scale(1)';
             img.style.transformOrigin = '0 0';
+            currentZoom = 1;
             
-            // Плавная прокрутка к началу
-            container.scrollTo({
-                left: 0,
-                top: 0,
-                behavior: 'smooth'
-            });
+            // После завершения анимации масштабирования, плавно прокручиваем к соответствующей позиции
+            setTimeout(() => {
+                container.scrollTo({
+                    left: normalizedScrollLeft,
+                    top: normalizedScrollTop,
+                    behavior: 'smooth'
+                });
+            }, 500); // Время должно совпадать с длительностью transition transform
             
             // Убираем хэш из URL
             if (window.location.hash) {
