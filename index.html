@@ -9,6 +9,7 @@
             height: 100%;
             margin: 0;
             overflow: hidden; /* Убираем глобальные полосы прокрутки */
+            position: relative;
         }
         .image-container {
             width: 100vw;
@@ -26,16 +27,18 @@
             position: fixed;
             top: 20px;
             right: 20px;
+            z-index: 1000;
             padding: 10px 15px;
-            background: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.7);
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
         }
         .reset-button:hover {
-            background: rgba(0, 0, 0, 0.9);
+            background-color: rgba(0, 0, 0, 0.9);
         }
     </style>
 </head>
@@ -43,17 +46,16 @@
     <div class="image-container">
         <img id="target-image" src="your-image.jpg" alt="Описание">
     </div>
+    
     <button class="reset-button" onclick="resetZoom()">Сбросить zoom</button>
 
     <script>
         // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
         const areas = {
+            'area1': { x: 1000, y: 500, zoom: 2 }, // Область сброса - начало координат с zoom=1
             'vn14': { x: 150, y: 500, zoom: 5 }, // x, y - координаты, zoom - уровень увеличения
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
-
-        // Переменная для хранения текущего состояния зума
-        let isZoomed = false;
 
         function zoomToArea(areaKey) {
             const area = areas[areaKey];
@@ -95,35 +97,13 @@
                     top: targetScrollTop,
                     behavior: 'smooth' // Плавная прокрутка
                 });
-
-                // Устанавливаем флаг зума
-                isZoomed = true;
             }, 50); // Небольшая задержка в 50мс для стабильности
         }
 
-        // Функция сброса зума без сброса координат
+        // Функция сброса zoom
         function resetZoom() {
-            const img = document.getElementById('target-image');
-            const container = document.querySelector('.image-container');
-            
-            // Сохраняем текущую позицию прокрутки
-            const currentScrollLeft = container.scrollLeft;
-            const currentScrollTop = container.scrollTop;
-            
-            // Сбрасываем трансформацию
-            img.style.transform = 'none';
-            
-            // Прокручиваем к сохраненной позиции (с учетом того, что теперь нет масштабирования)
-            setTimeout(() => {
-                container.scrollTo({
-                    left: currentScrollLeft,
-                    top: currentScrollTop,
-                    behavior: 'smooth'
-                });
-                
-                // Сбрасываем флаг зума
-                isZoomed = false;
-            }, 50);
+            window.location.hash = 'area1'; // Устанавливаем хэш для area1
+            zoomToArea('area1'); // Применяем zoom к области сброса
         }
 
         // Обработка загрузки страницы и хэша
@@ -136,13 +116,6 @@
 
         window.addEventListener('load', handleHash);
         window.addEventListener('hashchange', handleHash);
-
-        // Обработка клика по изображению для сброса зума
-        document.getElementById('target-image').addEventListener('click', function() {
-            if (isZoomed) {
-                resetZoom();
-            }
-        });
     </script>
 </body>
 </html>
