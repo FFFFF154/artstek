@@ -2,116 +2,177 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Умный zoom на изображении</title>
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
         body, html {
             height: 100%;
-            margin: 0;
-            overflow: hidden; /* Убираем глобальные полосы прокрутки */
-            position: relative;
+            width: 100%;
+            overflow: hidden;
+            position: fixed;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
         }
+        
         .image-container {
             width: 100vw;
             height: 100vh;
-            overflow: scroll; /* Контейнер сам будет прокручиваться */
+            overflow: auto;
+            position: relative;
+            -webkit-overflow-scrolling: touch;
         }
+        
         #target-image {
-            /* Размер оригинального изображения */
+            display: block;
             width: 2000px;
             height: 1500px;
-            display: block;
-            transition: transform 0.5s ease; /* Плавная анимация трансформации */
+            max-width: none;
+            transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            will-change: transform;
         }
+        
         .reset-button {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 1000;
-            padding: 10px 15px;
-            background-color: rgba(0, 0, 0, 0.7);
+            padding: 12px 18px;
+            background-color: rgba(0, 0, 0, 0.8);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+            font-weight: 500;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
+        
         .reset-button.visible {
             opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
         }
+        
         .reset-button:hover {
             background-color: rgba(0, 0, 0, 0.9);
+            transform: translateY(-2px);
+        }
+        
+        .reset-button:active {
+            transform: translateY(0);
+        }
+        
+        /* Для мобильных устройств */
+        @media (max-width: 768px) {
+            .reset-button {
+                top: 10px;
+                right: 10px;
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+        
+        /* Предотвращаем выделение текста при касании */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
     </style>
 </head>
-<body>
-    <div class="image-container">
-        <img id="target-image" src="image.jpg" alt="Описание">
+<body class="no-select">
+    <div class="image-container" id="imageContainer">
+        <img id="target-image" src="image.jpg" alt="Описание" draggable="false">
     </div>
     
     <button class="reset-button" id="resetZoom" title="Сбросить масштаб">Сбросить зум</button>
 
     <script>
-        // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
+        // Объект с координатами областей для zoom'а
         const areas = {
-            'vn14': { x: 300, y: 600, zoom: 4 },
-            'vn8': { x: 500, y: 600, zoom: 4 },
-            'vn': { x: 700, y: 600, zoom: 4 },
-            'vn6': { x: 900, y: 600, zoom: 4 },
-            'vn16': { x: 1100, y: 600, zoom: 4 },
-            'dvn5': { x: 1300, y: 600, zoom: 4 },
-            'dvn4': { x: 1600, y: 600, zoom: 4 },
-            'vn13': { x: 1800, y: 600, zoom: 4 },
-            // x, y - координаты, zoom - уровень увеличения
+            'vn14': { x: 150, y: 500, zoom: 5 },
+            'vn8': { x: 300, y: 500, zoom: 5 },
+            'vn': { x: 400, y: 500, zoom: 5 },
+            'vn6': { x: 500, y: 500, zoom: 5 },
+            'vn16': { x: 600, y: 500, zoom: 5 },
+            'dvn5': { x: 700, y: 500, zoom: 5 },
+            'dvn4': { x: 900, y: 500, zoom: 5 },
+            'vn13': { x: 1000, y: 500, zoom: 5 }
         };
 
         let isZoomed = false;
         const resetButton = document.getElementById('resetZoom');
         const img = document.getElementById('target-image');
-        const container = document.querySelector('.image-container');
+        const container = document.getElementById('imageContainer');
+
+        // Функция для блокировки масштабирования на мобильных устройствах
+        function preventZoom(event) {
+            if (event.touches.length > 1) {
+                event.preventDefault();
+            }
+        }
+
+        // Добавляем обработчики для предотвращения масштабирования
+        document.addEventListener('touchmove', preventZoom, { passive: false });
+        document.addEventListener('gesturestart', function(e) {
+            e.preventDefault();
+        });
 
         function zoomToArea(areaKey) {
             const area = areas[areaKey];
             if (!area) return;
 
-            // 1. Применяем увеличение
+            // Сохраняем текущую позицию прокрутки перед изменением
+            const currentScroll = {
+                left: container.scrollLeft,
+                top: container.scrollTop
+            };
+
+            // Применяем увеличение
             img.style.transform = `scale(${area.zoom})`;
             img.style.transformOrigin = '0 0';
 
-            // 2. Даём браузеру мгновение на отрисовку
             setTimeout(() => {
-                // 3. РАСЧЕТ ПРОКРУТКИ:
                 const scaledX = area.x * area.zoom;
                 const scaledY = area.y * area.zoom;
                 const centerX = container.clientWidth / 2;
                 const centerY = container.clientHeight / 2;
 
-                const targetScrollLeft = scaledX - centerX;
-                const targetScrollTop = scaledY - centerY;
+                const targetScrollLeft = Math.max(0, scaledX - centerX);
+                const targetScrollTop = Math.max(0, scaledY - centerY);
 
-                // 4. Прокручиваем к рассчитанной позиции
+                // Плавная прокрутка
                 container.scrollTo({
                     left: targetScrollLeft,
                     top: targetScrollTop,
                     behavior: 'smooth'
                 });
 
-                // Показываем кнопку сброса
                 isZoomed = true;
-                resetButton.classList.add('visible');
-            }, 50);
+                showResetButton();
+            }, 100);
         }
 
         function resetZoom() {
             if (!isZoomed) return;
             
-            // Прячем кнопку сброса
-            resetButton.classList.remove('visible');
+            hideResetButton();
             
-            // Плавно возвращаем к начальному состоянию
+            // Плавный сброс трансформации
             img.style.transform = 'scale(1)';
             img.style.transformOrigin = '0 0';
             
@@ -123,9 +184,19 @@
             });
             
             // Убираем хэш из URL
-            window.location.hash = '';
+            if (window.location.hash) {
+                window.location.hash = '';
+            }
             
             isZoomed = false;
+        }
+
+        function showResetButton() {
+            resetButton.classList.add('visible');
+        }
+
+        function hideResetButton() {
+            resetButton.classList.remove('visible');
         }
 
         // Обработка загрузки страницы и хэша
@@ -133,20 +204,45 @@
             const hash = window.location.hash.substring(1);
             if (areas[hash]) {
                 zoomToArea(hash);
-            } else if (hash === '') {
+            } else if (hash === '' && isZoomed) {
                 resetZoom();
             }
         }
 
         // Обработчики событий
-        window.addEventListener('load', handleHash);
+        window.addEventListener('load', function() {
+            // Небольшая задержка для стабилизации рендеринга
+            setTimeout(handleHash, 100);
+        });
+        
         window.addEventListener('hashchange', handleHash);
         resetButton.addEventListener('click', resetZoom);
 
-        // Скрываем кнопку при скролле (опционально)
-        container.addEventListener('scroll', () => {
+        // Скрываем кнопку при клике вне зоны
+        document.addEventListener('click', function(e) {
+            if (isZoomed && !resetButton.contains(e.target) && 
+                !container.contains(e.target) && e.target !== resetButton) {
+                hideResetButton();
+            }
+        });
+
+        // Предотвращаем контекстное меню на изображении
+        img.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Обработка изменения ориентации устройства
+        window.addEventListener('orientationchange', function() {
+            // Пересчитываем позицию при повороте устройства
             if (isZoomed) {
-                resetButton.classList.add('visible');
+                setTimeout(handleHash, 300);
+            }
+        });
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', function() {
+            if (isZoomed) {
+                setTimeout(handleHash, 100);
             }
         });
     </script>
