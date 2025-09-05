@@ -8,253 +8,87 @@
         body, html {
             height: 100%;
             margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
+            overflow: hidden; /* Убираем глобальные полосы прокрутки */
         }
         .image-container {
             width: 100vw;
             height: 100vh;
-            overflow: scroll;
+            overflow: scroll; /* Контейнер сам будет прокручиваться */
         }
         #target-image {
+            /* Размер оригинального изображения */
+            width: 2000px;
+            height: 1500px;
             display: block;
-            transition: transform 0.4s ease;
-            cursor: pointer;
-            /* Убираем фиксированные размеры, используем оригинальные */
-            max-width: none;
-        }
-        .zoom-indicator {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 20px;
-            font-size: 14px;
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        .zoom-indicator.visible {
-            opacity: 1;
-        }
-        .debug-panel {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.8);
-            padding: 15px;
-            border-radius: 10px;
-            color: white;
-            z-index: 1000;
-        }
-        .debug-panel button {
-            margin: 5px;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            background: #4CAF50;
-            color: white;
-        }
-        .debug-panel button.reset {
-            background: #f44336;
+            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
         }
     </style>
 </head>
 <body>
-    <div class="image-container" id="imageContainer">
+    <div class="image-container">
         <img id="target-image" src="your-image.jpg" alt="Описание">
-    </div>
-    
-    <div class="zoom-indicator" id="zoomIndicator">Масштаб: 100%</div>
-
-    <div class="debug-panel">
-        <div>Тестовые области:</div>
-        <button onclick="zoomToArea('vn14')">VN14 (150,500)</button>
-        <button onclick="zoomToArea('area2')">Area2 (1200,900)</button>
-        <button class="reset" onclick="resetZoom()">Сброс zoom</button>
     </div>
 
     <script>
+        // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
         const areas = {
-            'vn14': { x: 150, y: 500, zoom: 3 },
-            'area2': { x: 1200, y: 900, zoom: 4 }
+            'vn14': { x: 150, y: 500, zoom: 5 }, // x, y - координаты, zoom - уровень увеличения
+            'area2': { x: 1200, y: 900, zoom: 3 }
         };
 
-        let currentZoom = 1;
-        let lastTapTime = 0;
-        let isZoomed = false;
-        const zoomIndicator = document.getElementById('zoomIndicator');
-        const img = document.getElementById('target-image');
-        const container = document.getElementById('imageContainer');
+    function zoomToArea(areaKey) {
+    const area = areas[areaKey];
+    if (!area) return;
 
-        // Ждем загрузки изображения для получения реальных размеров
-        img.onload = function() {
-            console.log('Размеры изображения:', img.naturalWidth, 'x', img.naturalHeight);
-        };
+    const img = document.getElementById('target-image');
+    const container = document.querySelector('.image-container');
 
-        function zoomToArea(areaKey) {
-            const area = areas[areaKey];
-            if (!area) return;
+    // 1. Сбрасываем трансформацию и прокрутку к началу
+    img.style.transform = 'none';
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
 
-            console.log('Zoom к области:', areaKey, area);
+    // 2. Даём браузеру мгновение на отрисовку
+    setTimeout(() => {
+        // 3. Применяем увеличение
+        img.style.transform = `scale(${area.zoom})`;
+        img.style.transformOrigin = '0 0'; // Точка трансформации - всегда левый верхний угол
 
-            // Если уже в zoom'е - сначала сбрасываем
-            if (isZoomed) {
-                resetZoomImmediately();
-                // Даем время на сброс
-                setTimeout(() => zoomToArea(areaKey), 50);
-                return;
-            }
+        // 4. РАСЧЕТ ПРОКРУТКИ:
+        // Нам нужно поместить целевую точку (area.x, area.y) в центр экрана.
+        // После scale координаты изображения умножаются на zoom.
+        // Считаем позицию целевой точки на увеличенном изображении:
+        const scaledX = area.x * area.zoom;
+        const scaledY = area.y * area.zoom;
 
-            // Получаем текущие размеры изображения
-            const imgWidth = img.naturalWidth || img.offsetWidth;
-            const imgHeight = img.naturalHeight || img.offsetHeight;
+        // Центр окна браузера:
+        const centerX = container.clientWidth / 2;
+        const centerY = container.clientHeight / 2;
 
-            // Устанавливаем transform-origin в целевую точку
-            const originX = (area.x / imgWidth) * 100;
-            const originY = (area.y / imgHeight) * 100;
-            
-            img.style.transformOrigin = `${originX}% ${originY}%`;
-            img.style.transform = `scale(${area.zoom})`;
-            
-            currentZoom = area.zoom;
-            isZoomed = true;
+        // На сколько нужно прокрутить контейнер, чтобы целевая точка стала в центре?
+        // Искомая позиция прокрутки = позиция точки - половина ширины/высоты видимой области.
+        const targetScrollLeft = scaledX - centerX;
+        const targetScrollTop = scaledY - centerY;
 
-            // После применения трансформации рассчитываем прокрутку
-            setTimeout(() => {
-                const scaledX = area.x * area.zoom;
-                const scaledY = area.y * area.zoom;
-                
-                // Центр viewport
-                const centerX = container.clientWidth / 2;
-                const centerY = container.clientHeight / 2;
-                
-                // Позиция для прокрутки
-                const targetScrollLeft = scaledX - centerX;
-                const targetScrollTop = scaledY - centerY;
-
-                container.scrollTo({
-                    left: Math.max(0, targetScrollLeft),
-                    top: Math.max(0, targetScrollTop),
-                    behavior: 'smooth'
-                });
-
-                showZoomIndicator(`Область: ${areaKey} | Масштаб: ${area.zoom}x`);
-                
-            }, 100);
-        }
-
-        function resetZoomImmediately() {
-            img.style.transform = 'none';
-            img.style.transformOrigin = 'center center';
-            currentZoom = 1;
-            isZoomed = false;
-            container.scrollTo({ left: 0, top: 0, behavior: 'auto' });
-        }
-
-        function resetZoom() {
-            img.style.transform = 'scale(1)';
-            img.style.transformOrigin = 'center center';
-            currentZoom = 1;
-            isZoomed = false;
-            
-            container.scrollTo({
-                left: 0,
-                top: 0,
-                behavior: 'smooth'
-            });
-            
-            window.location.hash = '';
-            showZoomIndicator('Вся картина ✓');
-        }
-
-        function showZoomIndicator(text) {
-            zoomIndicator.textContent = text;
-            zoomIndicator.classList.add('visible');
-            
-            setTimeout(() => {
-                zoomIndicator.classList.remove('visible');
-            }, 2000);
-        }
-
-        // Двойной клик для сброса
-        img.addEventListener('dblclick', function(e) {
-            e.preventDefault();
-            resetZoom();
+        // 5. Прокручиваем к рассчитанной позиции
+        container.scrollTo({
+            left: targetScrollLeft,
+            top: targetScrollTop,
+            behavior: 'smooth' // Плавная прокрутка
         });
+    }, 50); // Небольшая задержка в 50мс для стабильности
+}
 
-        // Двойной тап для мобильных
-        img.addEventListener('touchend', function(e) {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTapTime;
-            
-            if (tapLength < 300 && tapLength > 0) {
-                e.preventDefault();
-                resetZoom();
-            }
-            
-            lastTapTime = currentTime;
-        });
-
-        // Дебаг: показывать координаты клика
-        img.addEventListener('click', function(e) {
-            if (currentZoom === 1) {
-                const rect = img.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                const x = e.clientX - rect.left + container.scrollLeft;
-                const y = e.clientY - rect.top + container.scrollTop;
-                
-                console.log('Абсолютные координаты:', Math.round(x), Math.round(y));
-                showZoomIndicator(`Координаты: ${Math.round(x)}, ${Math.round(y)}`);
-            }
-        });
-
-        // Обработка хэша URL
+        // Обработка загрузки страницы и хэша
         function handleHash() {
-            const hash = window.location.hash.substring(1);
+            const hash = window.location.hash.substring(1); // Убираем # из #area1
             if (areas[hash]) {
-                setTimeout(() => zoomToArea(hash), 100);
+                zoomToArea(hash);
             }
         }
 
         window.addEventListener('load', handleHash);
         window.addEventListener('hashchange', handleHash);
-
-        // Глобальные функции для debug панели
-        window.zoomToArea = zoomToArea;
-        window.resetZoom = resetZoom;
-
-        // Альтернативный простой метод zoom
-        function simpleZoomToArea(areaKey) {
-            const area = areas[areaKey];
-            if (!area) return;
-
-            resetZoomImmediately();
-            
-            setTimeout(() => {
-                // Просто скроллим к нужным координатам
-                container.scrollTo({
-                    left: area.x - 100,
-                    top: area.y - 100,
-                    behavior: 'smooth'
-                });
-                
-                showZoomIndicator(`Прокрутка к: ${area.x}, ${area.y}`);
-            }, 50);
-        }
-
-        // Добавляем кнопку для простого скролла
-        const debugPanel = document.querySelector('.debug-panel');
-        const simpleButton = document.createElement('button');
-        simpleButton.textContent = 'Простой скролл к VN14';
-        simpleButton.onclick = () => simpleZoomToArea('vn14');
-        simpleButton.style.background = '#2196F3';
-        debugPanel.appendChild(simpleButton);
     </script>
 </body>
 </html>
