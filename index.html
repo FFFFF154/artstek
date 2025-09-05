@@ -10,7 +10,6 @@
             text-align: center;
             line-height: 1.6;
         }
-        /* Стиль для целевого блока, чтобы его было хорошо видно */
         #целевая-область {
             background-color: #f8f9fa;
             border: 2px solid red;
@@ -19,9 +18,8 @@
             margin: 2rem auto;
             max-width: 600px;
         }
-        /* Просто чтобы страница была длиннее и прокрутка была заметна */
         .spacer {
-            height: 100vh; /* Элементы высотой в целый экран */
+            height: 100vh;
             background-color: #eee;
             margin: 1rem;
         }
@@ -39,7 +37,7 @@
         <p>Прокручивайте дальше...</p>
     </div>
 
-    <!-- ВАЖНО: Этот блок имеет уникальный id -->
+    <!-- Блок с якорем -->
     <div id="vn">
         <h2>✨ Вот она, нужная вам область! ✨</h2>
         <img src="https://placehold.co/600x400" alt="Пример изображения">
@@ -49,6 +47,32 @@
     <div class="spacer">
         <p>Ещё один спейсер после целевого блока.</p>
     </div>
+
+    <!-- ВАЖНЫЙ СКРИПТ ДЛЯ GITHUB PAGES -->
+    <script>
+        // Функция для обработки якоря
+        function scrollToAnchor() {
+            // Получаем якорь из URL (всё, что после #)
+            const hash = window.location.hash;
+            if (hash) {
+                // Находим элемент на странице с таким id
+                const element = document.querySelector(hash);
+                if (element) {
+                    // Плавно прокручиваем к элементу
+                    element.scrollIntoView({ behavior: 'smooth' });
+                }
+            }
+        }
+
+        // Выполняем когда страница полностью загрузилась
+        window.addEventListener('load', function() {
+            // Небольшая задержка для надёжности
+            setTimeout(scrollToAnchor, 100);
+        });
+
+        // Также обрабатываем изменение якоря уже на открытой странице
+        window.addEventListener('hashchange', scrollToAnchor);
+    </script>
 
 </body>
 </html>
