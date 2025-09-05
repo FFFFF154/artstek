@@ -8,20 +8,19 @@
         body, html {
             height: 100%;
             margin: 0;
-            overflow: hidden; /* Убираем глобальные полосы прокрутки */
+            overflow: hidden;
             position: relative;
         }
         .image-container {
             width: 100vw;
             height: 100vh;
-            overflow: scroll; /* Контейнер сам будет прокручиваться */
+            overflow: scroll;
         }
         #target-image {
-            /* Размер оригинального изображения */
             width: 2000px;
             height: 1500px;
             display: block;
-            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
+            transition: transform 0.5s ease; /* Плавная анимация трансформации */
         }
         
         /* Кнопка сброса зума */
@@ -54,9 +53,8 @@
     <button class="reset-zoom" onclick="resetZoom()">Сбросить zoom</button>
 
     <script>
-        // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
         const areas = {
-            'vn14': { x: 150, y: 500, zoom: 5 }, // x, y - координаты, zoom - уровень увеличения
+            'vn14': { x: 150, y: 500, zoom: 5 },
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
 
@@ -67,70 +65,56 @@
             const img = document.getElementById('target-image');
             const container = document.querySelector('.image-container');
 
-            // 1. Сбрасываем трансформацию и прокрутку к началу
+            // Сбрасываем трансформацию
             img.style.transform = 'none';
+            img.style.transformOrigin = '0 0';
             container.scrollLeft = 0;
             container.scrollTop = 0;
 
-            // 2. Даём браузеру мгновение на отрисовку
             setTimeout(() => {
-                // 3. Применяем увеличение
+                // Применяем увеличение
                 img.style.transform = `scale(${area.zoom})`;
-                img.style.transformOrigin = '0 0'; // Точка трансформации - всегда левый верхний угол
+                img.style.transformOrigin = '0 0';
 
-                // 4. РАСЧЕТ ПРОКРУТКИ:
-                // Нам нужно поместить целевую точку (area.x, area.y) в центр экрана.
-                // После scale координаты изображения умножаются на zoom.
-                // Считаем позицию целевой точки на увеличенном изображении:
                 const scaledX = area.x * area.zoom;
                 const scaledY = area.y * area.zoom;
 
-                // Центр окна браузера:
                 const centerX = container.clientWidth / 2;
                 const centerY = container.clientHeight / 2;
 
-                // На сколько нужно прокрутить контейнер, чтобы целевая точка стала в центре?
-                // Искомая позиция прокрутки = позиция точки - половина ширины/высоты видимой области.
                 const targetScrollLeft = scaledX - centerX;
                 const targetScrollTop = scaledY - centerY;
 
-                // 5. Прокручиваем к рассчитанной позиции
                 container.scrollTo({
                     left: targetScrollLeft,
                     top: targetScrollTop,
-                    behavior: 'smooth' // Плавная прокрутка
+                    behavior: 'smooth'
                 });
-            }, 50); // Небольшая задержка в 50мс для стабильности
+            }, 50);
         }
 
-        // Функция сброса зума
+        // Функция сброса зума - плавно показывает все изображение
         function resetZoom() {
             const img = document.getElementById('target-image');
             const container = document.querySelector('.image-container');
             
-            // Убираем трансформацию
+            // Плавно сбрасываем трансформацию
             img.style.transform = 'none';
             img.style.transformOrigin = '0 0';
             
-            // Прокручиваем к центру изображения
-            setTimeout(() => {
-                const centerX = (img.offsetWidth - container.clientWidth) / 2;
-                const centerY = (img.offsetHeight - container.clientHeight) / 2;
-                
-                container.scrollTo({
-                    left: centerX,
-                    top: centerY,
-                    behavior: 'smooth'
-                });
-                
-                // Очищаем хэш в URL
-                window.location.hash = '';
-            }, 50);
+            // Прокручиваем в начало
+            container.scrollTo({
+                left: 0,
+                top: 0,
+                behavior: 'smooth'
+            });
+            
+            // Очищаем хэш в URL
+            window.location.hash = '';
         }
 
-        // Обработка загрузки страницы и хэша
         function handleHash() {
-            const hash = window.location.hash.substring(1); // Убираем # из #area1
+            const hash = window.location.hash.substring(1);
             if (areas[hash]) {
                 zoomToArea(hash);
             }
