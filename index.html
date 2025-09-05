@@ -9,50 +9,96 @@
             height: 100%;
             margin: 0;
             overflow: hidden;
-            position: relative;
+            font-family: Arial, sans-serif;
         }
+        
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .controls button {
+            display: block;
+            margin: 5px 0;
+            padding: 8px 12px;
+            width: 100%;
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .controls button:hover {
+            background: #3a5a8a;
+        }
+        
         .image-container {
             width: 100vw;
             height: 100vh;
             overflow: scroll;
+            background: #f0f0f0;
         }
+        
         #target-image {
             width: 2000px;
             height: 1500px;
             display: block;
             transition: transform 0.5s ease;
         }
-        .reset-button {
+        
+        .reset-btn {
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
-            z-index: 1000;
-            padding: 10px 15px;
-            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            padding: 12px 20px;
+            background: #ff6b6b;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 4px;
             cursor: pointer;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            transition: background 0.3s;
         }
-        .reset-button:hover {
-            background-color: rgba(0, 0, 0, 0.9);
+        
+        .reset-btn:hover {
+            background: #ff5252;
         }
     </style>
 </head>
 <body>
-    <div class="image-container">
-        <img id="target-image" src="your-image.jpg" alt="Описание">
+    <div class="controls">
+        <h3>Области для zoom:</h3>
+        <button onclick="zoomToArea('vn14')">Область VN14</button>
+        <button onclick="zoomToArea('area2')">Область 2</button>
     </div>
     
-    <button class="reset-button" onclick="resetZoom()">Сбросить zoom</button>
+    <div class="image-container">
+        <img id="target-image" src="https://picsum.photos/2000/1500" alt="Тестовое изображение">
+    </div>
+    
+    <button class="reset-btn" onclick="resetZoom()">Сбросить Zoom</button>
 
     <script>
+        // Объект с координатами областей для zoom'а
         const areas = {
             'vn14': { x: 150, y: 500, zoom: 5 },
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
+        
+        // Флаг для отслеживания состояния zoom
+        let isZoomed = false;
+        // Сохраняем оригинальные размеры изображения
+        let originalWidth = 2000;
+        let originalHeight = 1500;
 
         function zoomToArea(areaKey) {
             const area = areas[areaKey];
@@ -60,31 +106,34 @@
 
             const img = document.getElementById('target-image');
             const container = document.querySelector('.image-container');
-
-            // Сначала сбрасываем всё
+            
+            // Сбрасываем трансформацию
             img.style.transform = 'none';
-            container.scrollLeft = 0;
-            container.scrollTop = 0;
-
+            
+            // Даём браузеру мгновение на отрисовку
             setTimeout(() => {
                 // Применяем увеличение
                 img.style.transform = `scale(${area.zoom})`;
                 img.style.transformOrigin = '0 0';
-
+                
+                // Расчет прокрутки
                 const scaledX = area.x * area.zoom;
                 const scaledY = area.y * area.zoom;
-
+                
                 const centerX = container.clientWidth / 2;
                 const centerY = container.clientHeight / 2;
-
+                
                 const targetScrollLeft = scaledX - centerX;
                 const targetScrollTop = scaledY - centerY;
-
+                
+                // Прокручиваем к рассчитанной позиции
                 container.scrollTo({
                     left: targetScrollLeft,
                     top: targetScrollTop,
                     behavior: 'smooth'
                 });
+                
+                isZoomed = true;
             }, 50);
         }
 
@@ -94,32 +143,48 @@
             
             // Плавно сбрасываем трансформацию
             img.style.transform = 'none';
-            img.style.transformOrigin = '0 0';
+            img.style.transformOrigin = 'center';
             
-            // Ждём завершения анимации трансформации
-            setTimeout(() => {
-                // Теперь прокручиваем к началу (0,0) плавно
-                container.scrollTo({
-                    left: 0,
-                    top: 0,
-                    behavior: 'smooth'
-                });
-                
-                window.location.hash = '';
-            }, 500); // Ждём завершения CSS-анимации
+            // Плавно прокручиваем к центру изображения
+            const centerX = (originalWidth - container.clientWidth) / 2;
+            const centerY = (originalHeight - container.clientHeight) / 2;
+            
+            container.scrollTo({
+                left: centerX,
+                top: centerY,
+                behavior: 'smooth'
+            });
+            
+            isZoomed = false;
         }
 
+        // Обработка загрузки страницы и хэша
         function handleHash() {
             const hash = window.location.hash.substring(1);
             if (areas[hash]) {
                 zoomToArea(hash);
-            } else if (hash === '') {
+            } else {
+                // Если хэш не соответствует области, сбрасываем zoom
                 resetZoom();
             }
         }
 
-        window.addEventListener('load', handleHash);
+        // Инициализация при загрузке
+        window.addEventListener('load', function() {
+            // Сначала центрируем изображение
+            resetZoom();
+            // Затем проверяем хэш
+            setTimeout(handleHash, 100);
+        });
+        
         window.addEventListener('hashchange', handleHash);
+        
+        // Добавляем обработчик изменения размера окна
+        window.addEventListener('resize', function() {
+            if (!isZoomed) {
+                resetZoom();
+            }
+        });
     </script>
 </body>
 </html>
