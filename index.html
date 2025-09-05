@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QR Area Selector</title>
+    <style>
+        .container {
+            position: relative;
+            display: inline-block;
+        }
+        #selection-box {
+            position: absolute;
+            border: 2px solid red;
+            background: rgba(255, 0, 0, 0.2);
+            display: none;
+        }
+        #qrcode {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img id="target-image" src="your-image.jpg" alt="Target Image">
+        <div id="selection-box"></div>
+    </div>
+    <div id="qrcode"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script>
+        let startX, startY, endX, endY;
+        const image = document.getElementById('target-image');
+        const selectionBox = document.getElementById('selection-box');
+        let isSelecting = false;
+
+        image.addEventListener('mousedown', (e) => {
+            isSelecting = true;
+            startX = e.offsetX;
+            startY = e.offsetY;
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.display = 'block';
+        });
+
+        image.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+            endX = e.offsetX;
+            endY = e.offsetY;
+            selectionBox.style.width = (endX - startX) + 'px';
+            selectionBox.style.height = (endY - startY) + 'px';
+        });
+
+        image.addEventListener('mouseup', () => {
+            isSelecting = false;
+            generateQRCode();
+        });
+
+        function generateQRCode() {
+            const coordinates = {
+                x: startX,
+                y: startY,
+                width: endX - startX,
+                height: endY - startY
+            };
+            
+            const url = new URL(window.location.href);
+            url.searchParams.set('area', JSON.stringify(coordinates));
+            
+            document.getElementById('qrcode').innerHTML = '';
+            new QRCode(document.getElementById('qrcode'), {
+                text: url.toString(),
+                width: 200,
+                height: 200
+            });
+        }
+
+        // Проверка параметров URL при загрузке
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const areaParam = urlParams.get('area');
+            
+            if (areaParam) {
+                const area = JSON.parse(areaParam);
+                highlightArea(area);
+            }
+        });
+
+        function highlightArea(area) {
+            selectionBox.style.left = area.x + 'px';
+            selectionBox.style.top = area.y + 'px';
+            selectionBox.style.width = area.width + 'px';
+            selectionBox.style.height = area.height + 'px';
+            selectionBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
