@@ -36,28 +36,48 @@
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
 
-        function zoomToArea(areaKey) {
-            const area = areas[areaKey];
-            if (!area) return;
+    function zoomToArea(areaKey) {
+    const area = areas[areaKey];
+    if (!area) return;
 
-            const img = document.getElementById('target-image');
-            const container = document.querySelector('.image-container');
+    const img = document.getElementById('target-image');
+    const container = document.querySelector('.image-container');
 
-            // 1. Увеличиваем изображение
-            img.style.transform = `scale(${area.zoom})`;
-            img.style.transformOrigin = `${area.x}px ${area.y}px`;
+    // 1. Сбрасываем трансформацию и прокрутку к началу
+    img.style.transform = 'none';
+    container.scrollLeft = 0;
+    container.scrollTop = 0;
 
-            // 2. Прокручиваем контейнер к целевой точке
-            // Рассчитываем центр экрана после масштабирования
-            const scrollX = (area.x * area.zoom) - (window.innerWidth / 2);
-            const scrollY = (area.y * area.zoom) - (window.innerHeight / 2);
+    // 2. Даём браузеру мгновение на отрисовку
+    setTimeout(() => {
+        // 3. Применяем увеличение
+        img.style.transform = `scale(${area.zoom})`;
+        img.style.transformOrigin = '0 0'; // Точка трансформации - всегда левый верхний угол
 
-            container.scrollTo({
-                left: scrollX,
-                top: scrollY,
-                behavior: 'smooth'
-            });
-        }
+        // 4. РАСЧЕТ ПРОКРУТКИ:
+        // Нам нужно поместить целевую точку (area.x, area.y) в центр экрана.
+        // После scale координаты изображения умножаются на zoom.
+        // Считаем позицию целевой точки на увеличенном изображении:
+        const scaledX = area.x * area.zoom;
+        const scaledY = area.y * area.zoom;
+
+        // Центр окна браузера:
+        const centerX = container.clientWidth / 2;
+        const centerY = container.clientHeight / 2;
+
+        // На сколько нужно прокрутить контейнер, чтобы целевая точка стала в центре?
+        // Искомая позиция прокрутки = позиция точки - половина ширины/высоты видимой области.
+        const targetScrollLeft = scaledX - centerX;
+        const targetScrollTop = scaledY - centerY;
+
+        // 5. Прокручиваем к рассчитанной позиции
+        container.scrollTo({
+            left: targetScrollLeft,
+            top: targetScrollTop,
+            behavior: 'smooth' // Плавная прокрутка
+        });
+    }, 50); // Небольшая задержка в 50мс для стабильности
+}
 
         // Обработка загрузки страницы и хэша
         function handleHash() {
