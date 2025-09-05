@@ -21,7 +21,7 @@
             width: 2000px;
             height: 1500px;
             display: block;
-            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
+            transition: transform 0.5s ease; /* Плавная анимация трансформации */
         }
         .reset-button {
             position: fixed;
@@ -52,7 +52,6 @@
     <script>
         // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
         const areas = {
-            'area1': { x: 500, y: 500, zoom: 1.5 }, // Область сброса - начало координат с zoom=1
             'vn14': { x: 150, y: 500, zoom: 5 }, // x, y - координаты, zoom - уровень увеличения
             'area2': { x: 1200, y: 900, zoom: 3 }
         };
@@ -100,10 +99,29 @@
             }, 50); // Небольшая задержка в 50мс для стабильности
         }
 
-        // Функция сброса zoom
+        // Функция сброса zoom к центру изображения
         function resetZoom() {
-            window.location.hash = 'area1'; // Устанавливаем хэш для area1
-            zoomToArea('area1'); // Применяем zoom к области сброса
+            const img = document.getElementById('target-image');
+            const container = document.querySelector('.image-container');
+            
+            // Плавно убираем трансформацию
+            img.style.transform = 'none';
+            img.style.transformOrigin = '0 0';
+            
+            // Прокручиваем к центру исходного изображения
+            setTimeout(() => {
+                const centerX = (img.offsetWidth - container.clientWidth) / 2;
+                const centerY = (img.offsetHeight - container.clientHeight) / 2;
+                
+                container.scrollTo({
+                    left: centerX,
+                    top: centerY,
+                    behavior: 'smooth'
+                });
+                
+                // Убираем хэш из URL
+                window.location.hash = '';
+            }, 50);
         }
 
         // Обработка загрузки страницы и хэша
