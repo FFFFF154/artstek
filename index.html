@@ -9,6 +9,7 @@
             height: 100%;
             margin: 0;
             overflow: hidden; /* Убираем глобальные полосы прокрутки */
+            position: relative;
         }
         .image-container {
             width: 100vw;
@@ -20,7 +21,29 @@
             width: 2000px;
             height: 1500px;
             display: block;
-            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
+            transition: transform 0.5s ease; /* Плавная анимация трансформации */
+        }
+        .reset-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            padding: 10px 15px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .reset-button.visible {
+            opacity: 1;
+        }
+        .reset-button:hover {
+            background-color: rgba(0, 0, 0, 0.9);
         }
     </style>
 </head>
@@ -28,6 +51,8 @@
     <div class="image-container">
         <img id="target-image" src="image.jpg" alt="Описание">
     </div>
+    
+    <button class="reset-button" id="resetZoom" title="Сбросить масштаб">Сбросить зум</button>
 
     <script>
         // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
@@ -41,62 +66,89 @@
             'dvn4': { x: 900, y: 500, zoom: 5 },
             'vn13': { x: 1000, y: 500, zoom: 5 },
             // x, y - координаты, zoom - уровень увеличения
-          
         };
 
-    function zoomToArea(areaKey) {
-    const area = areas[areaKey];
-    if (!area) return;
+        let isZoomed = false;
+        const resetButton = document.getElementById('resetZoom');
+        const img = document.getElementById('target-image');
+        const container = document.querySelector('.image-container');
 
-    const img = document.getElementById('target-image');
-    const container = document.querySelector('.image-container');
+        function zoomToArea(areaKey) {
+            const area = areas[areaKey];
+            if (!area) return;
 
-    // 1. Сбрасываем трансформацию и прокрутку к началу
-    img.style.transform = 'none';
-    container.scrollLeft = 0;
-    container.scrollTop = 0;
+            // 1. Применяем увеличение
+            img.style.transform = `scale(${area.zoom})`;
+            img.style.transformOrigin = '0 0';
 
-    // 2. Даём браузеру мгновение на отрисовку
-    setTimeout(() => {
-        // 3. Применяем увеличение
-        img.style.transform = `scale(${area.zoom})`;
-        img.style.transformOrigin = '0 0'; // Точка трансформации - всегда левый верхний угол
+            // 2. Даём браузеру мгновение на отрисовку
+            setTimeout(() => {
+                // 3. РАСЧЕТ ПРОКРУТКИ:
+                const scaledX = area.x * area.zoom;
+                const scaledY = area.y * area.zoom;
+                const centerX = container.clientWidth / 2;
+                const centerY = container.clientHeight / 2;
 
-        // 4. РАСЧЕТ ПРОКРУТКИ:
-        // Нам нужно поместить целевую точку (area.x, area.y) в центр экрана.
-        // После scale координаты изображения умножаются на zoom.
-        // Считаем позицию целевой точки на увеличенном изображении:
-        const scaledX = area.x * area.zoom;
-        const scaledY = area.y * area.zoom;
+                const targetScrollLeft = scaledX - centerX;
+                const targetScrollTop = scaledY - centerY;
 
-        // Центр окна браузера:
-        const centerX = container.clientWidth / 2;
-        const centerY = container.clientHeight / 2;
+                // 4. Прокручиваем к рассчитанной позиции
+                container.scrollTo({
+                    left: targetScrollLeft,
+                    top: targetScrollTop,
+                    behavior: 'smooth'
+                });
 
-        // На сколько нужно прокрутить контейнер, чтобы целевая точка стала в центре?
-        // Искомая позиция прокрутки = позиция точки - половина ширины/высоты видимой области.
-        const targetScrollLeft = scaledX - centerX;
-        const targetScrollTop = scaledY - centerY;
+                // Показываем кнопку сброса
+                isZoomed = true;
+                resetButton.classList.add('visible');
+            }, 50);
+        }
 
-        // 5. Прокручиваем к рассчитанной позиции
-        container.scrollTo({
-            left: targetScrollLeft,
-            top: targetScrollTop,
-            behavior: 'smooth' // Плавная прокрутка
-        });
-    }, 50); // Небольшая задержка в 50мс для стабильности
-}
+        function resetZoom() {
+            if (!isZoomed) return;
+            
+            // Прячем кнопку сброса
+            resetButton.classList.remove('visible');
+            
+            // Плавно возвращаем к начальному состоянию
+            img.style.transform = 'scale(1)';
+            img.style.transformOrigin = '0 0';
+            
+            // Плавная прокрутка к началу
+            container.scrollTo({
+                left: 0,
+                top: 0,
+                behavior: 'smooth'
+            });
+            
+            // Убираем хэш из URL
+            window.location.hash = '';
+            
+            isZoomed = false;
+        }
 
         // Обработка загрузки страницы и хэша
         function handleHash() {
-            const hash = window.location.hash.substring(1); // Убираем # из #area1
+            const hash = window.location.hash.substring(1);
             if (areas[hash]) {
                 zoomToArea(hash);
+            } else if (hash === '') {
+                resetZoom();
             }
         }
 
+        // Обработчики событий
         window.addEventListener('load', handleHash);
         window.addEventListener('hashchange', handleHash);
+        resetButton.addEventListener('click', resetZoom);
+
+        // Скрываем кнопку при скролле (опционально)
+        container.addEventListener('scroll', () => {
+            if (isZoomed) {
+                resetButton.classList.add('visible');
+            }
+        });
     </script>
 </body>
 </html>
