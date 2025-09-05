@@ -3,76 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Моя целевая страница</title>
+    <title>Умный zoom на изображении</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            line-height: 1.6;
+        body, html {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* Убираем глобальные полосы прокрутки */
         }
-        #целевая-область {
-            background-color: #f8f9fa;
-            border: 2px solid red;
-            border-radius: 10px;
-            padding: 2rem;
-            margin: 2rem auto;
-            max-width: 600px;
-        }
-        .spacer {
+        .image-container {
+            width: 100vw;
             height: 100vh;
-            background-color: #eee;
-            margin: 1rem;
+            overflow: scroll; /* Контейнер сам будет прокручиваться */
+        }
+        #target-image {
+            /* Размер оригинального изображения */
+            width: 2000px;
+            height: 1500px;
+            display: block;
+            /* transform-origin: 0 0; Начало трансформации - левый верхний угол */
         }
     </style>
 </head>
 <body>
-
-    <h1>Добро пожаловать на мою страницу</h1>
-    <p>Прокрутите вниз, чтобы увидеть нужную область.</p>
-
-    <div class="spacer">
-        <p>Здесь ничего нет...</p>
-    </div>
-    <div class="spacer">
-        <p>Прокручивайте дальше...</p>
+    <div class="image-container">
+        <img id="target-image" src="your-image.jpg" alt="Описание">
     </div>
 
-    <!-- Блок с якорем -->
-    <div id="vn">
-        <h2>✨ Вот она, нужная вам область! ✨</h2>
-        <img src="https://placehold.co/600x400" alt="Пример изображения">
-        <p>Браузер автоматически прокрутился к этому блоку благодаря якорю в ссылке.</p>
-    </div>
-
-    <div class="spacer">
-        <p>Ещё один спейсер после целевого блока.</p>
-    </div>
-
-    <!-- ВАЖНЫЙ СКРИПТ ДЛЯ GITHUB PAGES -->
     <script>
-        // Функция для обработки якоря
-        function scrollToAnchor() {
-            // Получаем якорь из URL (всё, что после #)
-            const hash = window.location.hash;
-            if (hash) {
-                // Находим элемент на странице с таким id
-                const element = document.querySelector(hash);
-                if (element) {
-                    // Плавно прокручиваем к элементу
-                    element.scrollIntoView({ behavior: 'smooth' });
-                }
+        // Объект с координатами областей для zoom'а (в пикселях оригинального изображения)
+        const areas = {
+            'area1': { x: 500, y: 300, zoom: 2.5 }, // x, y - координаты, zoom - уровень увеличения
+            'area2': { x: 1200, y: 900, zoom: 3 }
+        };
+
+        function zoomToArea(areaKey) {
+            const area = areas[areaKey];
+            if (!area) return;
+
+            const img = document.getElementById('target-image');
+            const container = document.querySelector('.image-container');
+
+            // 1. Увеличиваем изображение
+            img.style.transform = `scale(${area.zoom})`;
+            img.style.transformOrigin = `${area.x}px ${area.y}px`;
+
+            // 2. Прокручиваем контейнер к целевой точке
+            // Рассчитываем центр экрана после масштабирования
+            const scrollX = (area.x * area.zoom) - (window.innerWidth / 2);
+            const scrollY = (area.y * area.zoom) - (window.innerHeight / 2);
+
+            container.scrollTo({
+                left: scrollX,
+                top: scrollY,
+                behavior: 'smooth'
+            });
+        }
+
+        // Обработка загрузки страницы и хэша
+        function handleHash() {
+            const hash = window.location.hash.substring(1); // Убираем # из #area1
+            if (areas[hash]) {
+                zoomToArea(hash);
             }
         }
 
-        // Выполняем когда страница полностью загрузилась
-        window.addEventListener('load', function() {
-            // Небольшая задержка для надёжности
-            setTimeout(scrollToAnchor, 100);
-        });
-
-        // Также обрабатываем изменение якоря уже на открытой странице
-        window.addEventListener('hashchange', scrollToAnchor);
+        window.addEventListener('load', handleHash);
+        window.addEventListener('hashchange', handleHash);
     </script>
-
 </body>
 </html>
